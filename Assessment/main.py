@@ -382,18 +382,32 @@ def fetch_data(patient_id:str, requirements: Optional[str] = Query(None)):
     
     if not result:
         return {"message": f"{patient_id} is invalid"}
-    # parameters = requirements.split(",")
-
-    pipeline = [
-            {"$match": {"patient_id": patient_id}},  # Match the patient_id
-            {"$unwind": "$records"},  # Unwind the records array
-            {"$project": {  # Project fields
-                "bp_level": "$records.bp_level"
-            }}
-            
+    
+    if not requirements:
+        return {"message": f"{result}"}
+    else:
+        parameters = requirements.split(",")
+        projection = {param: "$records." + param for param in parameters}
+        group_by = {
+        "_id": {param: "$" + param for param in parameters}
+        }
+        # for param in parameters:
+        #     group_by[param] = {"$first": "$records." + param}
+        print(group_by)
+        pipeline = [
+            {"$match": {"patient_id": patient_id}},
+            {"$unwind": "$records"}
         ]
-    bp_data = list(collection.aggregate(pipeline))
-    print(bp_data)
 
-    return {"message": f"{result}"}
+        if projection:
+            pipeline.append({"$project": projection})
+
+        if group_by:
+            pipeline.append({"$group": group_by})
+
+        print(pipeline)
+
+        bp_data = list(collection.aggregate(pipeline))
+
+        return {"message": f"{bp_data}"}
     
